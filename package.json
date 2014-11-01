@@ -1,0 +1,13 @@
+{
+  "name": "synclib",
+  "version": "0.0.1",
+  "description": "a real-time, mobile-friendly sync library for structured data",
+  "main": "app.js",
+  "repository": "",
+  "author": "Cyril Meurillon (cyril@pobox.com)",
+  "dependencies": {
+    "async": "~0.2.8",
+    "express": "~3.2.4",
+    "socket.io": "~0.9.14"
+  }
+}
