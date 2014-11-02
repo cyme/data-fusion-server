@@ -622,7 +622,40 @@ function sync(request)
 
     Promise.settle([creationsPromise, deletionsPromise, updatesPromise])
  
-    // process the client events and capture the processing state
+    // deal with parsing errors here
+    
+    .catch(function(reason) {
+        
+        var     i;
+        var     j;
+        var     resolved;
+        var     error;
+        
+        // release all changes were created
+        
+        for(i=0; i<reason.resolved.length; i++) {
+            resolved = reason.resolved[i];
+            if (resolved === undefined)
+                continue;
+            for(j=0; j<resolved.length; i++)
+                resolved[i].release();
+        }
+        
+        // identify the first reason for rejection
+        
+        for(i=0; i<reason.rejected.length; i++) {
+            error = reason.rejected[i];
+            if (error !== undefined)
+                break;
+        }
+        
+        // communicate the error back to the client and return
+        
+        request.error(error);
+        return Promise.reject(error);
+    })
+    
+    // no errors. process the client events and capture the processing state
     // and push to other clients the appropriate changes
 
     .then(function(results) {
@@ -665,7 +698,7 @@ function sync(request)
                 local: reference.localID
             });
         });
-console.log("sync succeeded");
+
         request.respond(data);
         
         return Promise.settle([deletionsCommittedPromise,
@@ -681,49 +714,5 @@ console.log("sync succeeded");
         // now we can safely clean up
 
         Sync.cleanupAfterProcessing(processingState);
-console.log('client refcount: '+client.refcount);
-    })
-    
-    // if we got any error along the way, deal with it here
-    
-    .catch(function(error) {
-        
-        // if we got an error extracting the client request.
-        // return an error from sync
-        
-        console.error("sync failed: ", error);
-        
-        // did we fail in Promise.settle?
-        
-        if (clientCreations === undefined) {
-            
-            // extract the values that may have resolved from the error
-            
-            clientCreations = error.resolved[0];
-            clientDeletions = error.resolved[1];
-            clientUpdates = error.resolved[2];
-            
-            // let the error be the first error we find
-            
-            error = (error.rejected[0] !== undefined ? error.rejected[0] :
-                error.rejected[1] !== undefined ? error.rejected[1] :
-                error.rejected[2]);
-        }
-        
-        // clean up
-        
-        if (clientCreations !== undefined)
-            clientCreations.forEach(function(creation) {
-                creation.drop();
-            });
-        if (clientDeletions !== undefined)
-            clientDeletions.forEach(function(deletion) {
-                deletion.drop();
-            });
-        if (clientUpdates !== undefined)
-            clientUpdates.forEach(function(update) {
-                update.drop();
-            });
-        request.error(error);
     });
 }
