@@ -703,11 +703,11 @@ Request.parseUpdates = function(client, body)
 };
 
 
-// Request.composeObjectList = function(objects)
+// Request.composeObjectList = function(objects, sequence)
 // create a well-formatted list readable by clients that captures a list of object
 // synchronous
 
-Request.composeObjectList = function(objects)
+Request.composeObjectList = function(objects, sequence)
 {
     var     list;
     
@@ -716,7 +716,8 @@ Request.composeObjectList = function(objects)
         list.push({
                 subclass: object.reference.subclass,
                 id: object.reference.globalID,
-                version: object.version
+                version: object.version,
+                values: Request.composeObjectValues(object, sequence)
         });
     });
     return list;

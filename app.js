@@ -12,6 +12,7 @@ var Condition = require('sync-utils').Condition;
 var UserError = require('./user_error');
 var Group = require('./group');
 var Client = require('./client');
+var Connection = require('./connection');
 var Request = require('./request');
 var Snapshot = require('./snapshot');
 var Query = require('./query');
@@ -20,9 +21,7 @@ var Sync = require('./sync');
 var app = express();
 var server = http.Server(app);
 
-/*
 var io = require('socket.io')(server);
-*/
 
 app.use(bodyParser.json());
 
@@ -46,7 +45,6 @@ app.post('/sync', function(req, res) {
     Request.handleHTTPRequest(req, res, sync);
 });
 
-/*
 io.on('connection', function (socket) {
     var     connection;
     
@@ -82,25 +80,24 @@ io.on('connection', function (socket) {
         sync(request);
     });
 });
-*/
 
 server.setTimeout(0);
 server.listen(process.env.PORT, process.env.IP);
 console.log("Listening on %s : %d", process.env.IP, process.env.PORT);
 
-/*
-TO DO:
-- Implement client-allocated object IDs
-    combination of client session token and unique client object id
-    allows to make object creation asynchronous (no need to wait for Parse object id)
-    but forces to maintain mapping table, a hit on performance and memory
-*/
-
 
 // init
 // in:
 // {
-//      "session": "{session token}"
+//      "session": "{session token}",
+//      "instantiated": [
+//          {
+//              "subclass": "{class name}",
+//              "id": "{object id}",
+//              "version": #{version}
+//          }
+//          ...
+//      ]
 // }
 // out:
 // {
@@ -147,7 +144,17 @@ console.log('client refcount: '+client.refcount);
 //          {
 //              "subclass": "{class name}",
 //              "id": "{object id}",
-//              "version": #{version}
+//              "version": #{version},
+//              "values": [
+//                  [ "{property name}", "{string value}" | #{number value} ]
+//                  [ "{relation name}",
+//                      {
+//                          "type": "global",
+//                          "subclass": "{class name}",
+//                          "id": "{object id}"
+//                  } ]
+//                     ...
+//              ]
 //          }
 //      ]
 //  }
@@ -159,6 +166,7 @@ function watch(request)
     var     subclass;
     var     query;
     var     snapshot;
+    var     sequence;
     var     doneWithResults;
     var     readyToUpdate;
     var     currentPushCompleted;
@@ -188,6 +196,7 @@ console.log('watch');
     // create a snapshot of the data set and retain it
 
     snapshot = new Snapshot(client.group).retain();
+    sequence = snqpshot.sequence;
     
     // capture the ready-to-update query condition and insert ourselves in the
     // query processing queue
@@ -275,8 +284,8 @@ console.log('watch');
 
         // create a formatted list of qualified and fetch objects for the client
         
-        qualifiedList = Request.composeObjectList(qualified);
-        fetchList = Request.composeObjectList(fetch);
+        qualifiedList = Request.composeObjectList(qualified, sequence);
+        fetchList = Request.composeObjectList(fetch, sequence);
 
         // we're now have a response formed
         // let's wait for our turn to respond to the client
@@ -511,79 +520,6 @@ console.log('forget');
 //          ...
 //      ]
 // }
-//
-//  /* pushed (asynchronous data) */
-//
-//      "creation": {
-//          "subclass": "{class name}",
-//          "id": "{object id}",
-//          "values": [
-//              [ "{property name}", "{string value}" | #{number value} ]
-//              [ "{relation name}",
-//                {
-//                  "type": "global",
-//                  "subclass": "{class name}",
-//                  "id": "{object id}"
-//                } ]
-//              ...
-//          ],
-//          "qualifying": [
-//              "{query id}"
-//              ...
-//          ],
-//          "fetch": [
-//              {
-//                  "subclass": "{class name}",
-//                  "id": "{object id}",
-//                  "version": #{version}
-//              }
-//              ...
-//          ]
-//      }
-//
-//      "deletion": {
-//          "subclass": "{class name}",
-//          "id": "{object id}",
-//          "disqualifying": [
-//              "{query id}
-//              ...
-//          ]
-//      }
-//
-//      "update": {
-//          "subclass": "{class name}",
-//          "id": "{object id}",
-//          "version" : #{version},
-//          "sequence": #{sequence},
-//          "values": [
-//              [ "{property name}", "{string value}" | #{number value} ]
-//              [
-//                  "{relation name}",
-//                  {
-//                      "type": "global",
-//                      "subclass": "{class name}",
-//                      "id": "{object id}"
-//                  }
-//              ]
-//              ...
-//          ],
-//          "qualifying": [
-//              "{query id}"
-//              ...
-//          ],
-//          "disqualifying": [
-//              "{query id}"
-//              ...
-//          ],
-//          "fetch": [
-//              {
-//                  "subclass": "{class name}",
-//                  "id": "{object id}",
-//                  "version": #{version}
-//              }
-//              ...
-//          ]
-//      }
 
 function sync(request)
 {

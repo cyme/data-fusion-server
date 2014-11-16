@@ -668,6 +668,11 @@ console.log('fixing ', update.object.reference.globalID);
     });
 };
 
+
+// Sync.pushEventsToClient = function(client, snapshot, queries, queryPromises, deletions, updates, lastPushCompleted, currentPushCompleted)
+// push to a client all the events matching the client queries
+// return a promise that resolves when all events have been pushed
+//
 //      "creation": {
 //          "subclass": "{class name}",
 //          "id": "{object id}",
@@ -689,7 +694,17 @@ console.log('fixing ', update.object.reference.globalID);
 //              {
 //                  "subclass": "{class name}",
 //                  "id": "{object id}",
-//                  "version": #{version}
+//                  "version": #{version},
+//                  "values": [
+//                      [ "{property name}", "{string value}" | #{number value} ]
+//                      [ "{relation name}",
+//                          {
+//                              "type": "global",
+//                              "subclass": "{class name}",
+//                              "id": "{object id}"
+//                      } ]
+//                      ...
+//                  ],
 //              }
 //              ...
 //          ]
@@ -733,15 +748,22 @@ console.log('fixing ', update.object.reference.globalID);
 //              {
 //                  "subclass": "{class name}",
 //                  "id": "{object id}",
-//                  "version": #{version}
+//                  "version": #{version},
+//                  "values": [
+//                      [ "{property name}", "{string value}" | #{number value} ]
+//                      [ "{relation name}",
+//                          {
+//                              "type": "global",
+//                              "subclass": "{class name}",
+//                              "id": "{object id}"
+//                      } ]
+//                      ...
+//                  ]
 //              }
 //              ...
 //          ]
-//      }
-
-// Sync.pushEventsToClient = function(client, snapshot, queries, queryPromises, deletions, updates, lastPushCompleted, currentPushCompleted)
-// push to a client all the events matching the client queries
-// return a promise that resolves when all events have been pushed
+//      },
+//      sequence: #{sequence}
 
 Sync.pushEventsToClient = function(client, snapshot, queries, queryPromises, deletions, updates, lastPushCompleted, currentPushCompleted)
 {
@@ -891,7 +913,7 @@ Sync.pushEventsToClient = function(client, snapshot, queries, queryPromises, del
                     version: object.version,
                     values: Request.composeObjectValues(object, sequence),
                     qualifying: Request.composeQueryList(creation.qualifying),
-                    fetch: Request.composeObjectList(fetchLists[index++])
+                    fetch: Request.composeObjectList(fetchLists[index++], sequence)
                 }
             });
         });
@@ -951,7 +973,7 @@ Sync.pushEventsToClient = function(client, snapshot, queries, queryPromises, del
                     values: Request.composeUpdateValues(update),
                     qualifying: Request.composeQueryList(update.qualifying),
                     disqualifying: Request.composeQueryList(update.disqualifying),
-                    fetch: Request.composeObjectList(fetchLists[index++])
+                    fetch: Request.composeObjectList(fetchLists[index++], sequence)
                 }
             });
         });
